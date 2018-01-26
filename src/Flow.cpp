@@ -1759,13 +1759,27 @@ json_object* Flow::flow2json() {
       json_object_object_add(my_object, "type", json_object_new_string(ntop->getPrefs()->get_es_type()));
     }
     /* json_object_object_add(my_object, "@version", json_object_new_int(1)); */
-
-    // MAC addresses are set only when dumping to ES to optimize space consumption
-    json_object_object_add(my_object, Utils::jsonLabel(IN_SRC_MAC, "IN_SRC_MAC", jsonbuf, sizeof(jsonbuf)),
-			   json_object_new_string(Utils::formatMac(cli_host->get_mac(), buf, sizeof(buf))));
-    json_object_object_add(my_object, Utils::jsonLabel(OUT_DST_MAC, "OUT_DST_MAC", jsonbuf, sizeof(jsonbuf)),
-			   json_object_new_string(Utils::formatMac(srv_host->get_mac(), buf, sizeof(buf))));
   }
+
+  // MAC addresses dumping globally enabled
+  json_object_object_add(my_object, Utils::jsonLabel(IN_SRC_MAC, "IN_SRC_MAC", jsonbuf, sizeof(jsonbuf)),
+                        json_object_new_string(Utils::formatMac(cli_host->get_mac(), buf, sizeof(buf))));
+  json_object_object_add(my_object, Utils::jsonLabel(OUT_DST_MAC, "OUT_DST_MAC", jsonbuf, sizeof(jsonbuf)),
+                        json_object_new_string(Utils::formatMac(srv_host->get_mac(), buf, sizeof(buf))));
+
+  // Insert the visual names of SRC (cli_host) and DST (srv_host) from DHCP, MDNS or whatever source
+  cli_host->get_visual_name(buf, sizeof(buf));
+  json_object_object_add(my_object, "SRC_VISUAL_NAME", json_object_new_string(buf));
+
+  srv_host->get_visual_name(buf, sizeof(buf));
+  json_object_object_add(my_object, "DST_VISUAL_NAME", json_object_new_string(buf));
+
+  // Insert the OS of SRC (cli_host) and DST (srv_host), at least one of which is nonesensical
+  c = cli_host->get_os();
+  if(c) json_object_object_add(my_object, "SRC_OP_SYSTEM", json_object_new_string(c));
+
+  c = srv_host->get_os();
+  if(c) json_object_object_add(my_object, "DST_OP_SYSTEM", json_object_new_string(c));
 
   if(cli_host->get_ip()) {
     if(cli_host->get_ip()->isIPv4()) {
@@ -1912,6 +1926,9 @@ json_object* Flow::flow2json() {
 
   if(isSSL() && protos.ssl.certificate)
     json_object_object_add(my_object, "SSL_SERVER_NAME", json_object_new_string(protos.ssl.certificate));
+
+  if(isSSL() && protos.ssl.server_certificate)
+    json_object_object_add(my_object, "SSL_SERVER_CERT", json_object_new_string(protos.ssl.server_certificate));
 
 #ifdef NTOPNG_PRO
   if(iface->is_bridge_interface())
